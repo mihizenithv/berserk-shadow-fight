@@ -1,0 +1,74 @@
+{
+  "sheets": [
+    {
+      "name": "Fighter_A",
+      "file": "fighter_a_spritesheet.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "animations": {
+        "idle": { "row": 0, "frames": 4 },
+        "walk": { "row": 1, "frames": 6 },
+        "dash": { "row": 2, "frames": 4 },
+        "jump": { "row": 3, "frames": 4 },
+        "light_attack": { "row": 4, "frames": 6, "active_frames": [2, 3] },
+        "heavy_attack": { "row": 5, "frames": 8, "active_frames": [4, 5] },
+        "block": { "row": 6, "frames": 2 },
+        "hit": { "row": 7, "frames": 3 },
+        "ko": { "row": 8, "frames": 6 }
+      }
+    },
+    {
+      "name": "Fighter_B",
+      "file": "fighter_b_spritesheet.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "animations": {
+        "idle": { "row": 0, "frames": 4 },
+        "walk": { "row": 1, "frames": 6 },
+        "dash": { "row": 2, "frames": 4 },
+        "jump": { "row": 3, "frames": 4 },
+        "heavy_attack": { "row": 4, "frames": 8, "active_frames": [4, 5] },
+        "light_attack": { "row": 5, "frames": 6, "active_frames": [2, 3] },
+        "block": { "row": 6, "frames": 2 },
+        "hit": { "row": 7, "frames": 3 },
+        "ko": { "row": 8, "frames": 6 }
+      }
+    },
+    {
+      "name": "Slash_FX",
+      "file": "slash_effect_sheet.png",
+      "frameWidth": 128,
+      "frameHeight": 64,
+      "totalFrames": 6
+    },
+    {
+      "name": "Hit_Spark",
+      "file": "hit_spark_sheet.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "totalFrames": 5
+    },
+    {
+      "name": "Blood_Splash",
+      "file": "blood_splash_sheet.png",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "totalFrames": 4
+    },
+    {
+      "name": "Particles",
+      "file": "particles_sheet.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "totalFrames": 8
+    }
+  ],
+  "global_palette": {
+    "black_base": "#0b0b0d",
+    "mid_brown": "#2e2a24",
+    "wet_stone": "#4a4e52",
+    "highlight_purple": "#8a2be2",
+    "highlight_orange": "#ff5500",
+    "blood": "#8a0303"
+  }
+}

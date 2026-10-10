@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Fight: Berserk Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Cinzel', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 1280px;
+            height: 720px;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .health-section {
+            position: absolute;
+            top: 30px;
+            width: 480px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+        }
+
+        .p1.health-section {
+            left: 30px;
+        }
+
+        .p2.health-section {
+            right: 30px;
+            flex-direction: row-reverse;
+        }
+
+        .portrait {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            overflow: hidden;
+            z-index: 10;
+            background: #111;
+            box-shadow: 0 0 25px rgba(255, 140, 0, 0.4);
+            position: absolute;
+        }
+
+        .p1 .portrait {
+            left: 0;
+            border-color: #ff8c42;
+        }
+
+        .p2 .portrait {
+            right: 0;
+            border-color: #a855f7;
+        }
+
+        .portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: contrast(1.1) brightness(0.9);
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 22px;
+            background: rgba(20, 20, 20, 0.8);
+            position: relative;
+            transform: skewX(-20deg);
+            border: 1px solid #444;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            margin: 0 50px;
+            backdrop-filter: blur(4px);
+        }
+
+        .health-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.1s linear;
+        }
+
+        .p1 .health-fill {
+            background: linear-gradient(180deg, #ffaa00, #ff4400);
+            box-shadow: 0 0 10px #ff4400;
+        }
+
+        .p2 .health-fill {
+            background: linear-gradient(180deg, #d242ff, #5d0085);
+            box-shadow: 0 0 10px #8000ff;
+            float: right;
+        }
+
+        .name-tag {
+            position: absolute;
+            top: -25px;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 4px #000;
+            color: #888;
+            transform: skewX(-20deg);
+        }
+
+        .p1 .name-tag {
+            left: 55px;
+            color: #ffbc85;
+        }
+
+        .p2 .name-tag {
+            right: 55px;
+            color: #eebbff;
+        }
+
+        .timer {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 56px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 50, 0, 0.6);
+        }
+
+        #announce {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 110px;
+            font-weight: 900;
+            color: #fff;
+            background: -webkit-linear-gradient(#fff, #f00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+            font-style: italic;
+            opacity: 0;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+        }
+
+        #announce.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #555;
+            font-size: 14px;
+            letter-spacing: 8px;
+            transition: opacity 0.8s;
+        }
+
+        #loading.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 50%, black 140%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .hit-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.05s;
+            mix-blend-mode: overlay;
+            z-index: 20;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+        <div class="vignette"></div>
+        <div class="hit-flash" id="flash"></div>
+        <div id="ui">
+            <div class="health-section p1">
+                <div class="portrait"><img src="guts.png" alt="G"></div>
+                <div class="bar-container">
+                    <div class="name-tag">GUTS</div>
+                    <div class="health-fill" id="hp1"></div>
+                </div>
+            </div>
+            <div class="timer" id="timer">99</div>
+            <div class="health-section p2">
+                <div class="bar-container">
+                    <div class="name-tag">SNAKE BARON</div>
+                    <div class="health-fill" id="hp2"></div>
+                </div>
+                <div class="portrait"><img src="snake_baron.png" alt="S"></div>
+            </div>
+            <div id="announce">FIGHT!</div>
+        </div>
+        <div id="loading">LOADING...</div>
+    </div>
+
+    <script>
+        "use strict";
+
+        const CFG = { W: 1280, H: 720, GROUND: 620, GRAVITY: 3000, FRICTION: 0.8 };
+        const M = { lerp: (a, b, t) => a + (b - a) * t, rand: (min, max) => Math.random() * (max - min) + min };
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // ANIMATION DATA
+        // ═══════════════════════════════════════════════════════════════════════════════
+        const BONES = {
+            GUTS: [[-1, 0, 0], [0, 55, -1.57], [1, 28, -1.57], [1, 42, 2.5], [3, 36, 2.5], [4, 0, 0], [1, 42, 0.6], [6, 36, 0.6], [7, 0, 0], [0, 52, 1.8], [9, 52, 1.5], [10, 14, 0], [0, 52, 1.3], [12, 52, 1.5], [13, 14, 0]],
+            SNAKE: [[-1, 0, 0], [0, 65, -1.57], [1, 35, -1.3], [1, 45, 2.0], [3, 42, 2.0], [4, 2, 0], [1, 45, 1.1], [6, 42, 1.1], [7, 2, 0], [0, 55, 1.7], [9, 55, 1.5], [10, 12, 0], [0, 55, 1.4], [12, 55, 1.5], [13, 12, 0], [0, 45, 3.5], [15, 45, 3.2], [16, 45, 3.0]]
+        };
+        const MOVES = {
+            IDLE: {
+                GUTS: { t: 1.5, loop: true, k: [{ t: 0, p: { 1: -1.57, 6: 0.6, 3: 2.5 } }, { t: 0.75, p: { 1: -1.55, 6: 0.65, 3: 2.45 } }] },
+                SNAKE: { t: 2.0, loop: true, k: [{ t: 0, p: { 1: -1.3, 2: -1.2, 15: 3.5 } }, { t: 1, p: { 1: -1.5, 2: -1.5, 15: 2.5 } }] }
+            },
+            PUNCH: {
+                GUTS: { dmg: 10, range: 90, t: 0.4, k: [{ t: 0, p: {} }, { t: 0.1, p: { 1: -2.0, 6: -0.5 } }, { t: 0.2, p: { 1: -1.2, 6: 2.0 }, hit: true }, { t: 0.4, p: { 1: -1.57, 6: 0.6 } }] },
+                SNAKE: { dmg: 12, range: 100, t: 0.5, k: [{ t: 0, p: {} }, { t: 0.2, p: { 1: -1.0, 6: -1.0 } }, { t: 0.3, p: { 1: -1.8, 6: 2.5 }, hit: true }, { t: 0.5, p: {} }] }
+            },
+            WEAPON: {
+                GUTS: { dmg: 25, range: 200, t: 0.8, k: [{ t: 0, p: {} }, { t: 0.3, p: { 1: -2.2, 6: -2.8, 7: -1.0 } }, { t: 0.4, p: { 1: -1.1, 6: 2.2, 7: 2.2 }, hit: true }, { t: 0.8, p: {} }] },
+                SNAKE: { dmg: 18, range: 160, t: 0.7, k: [{ t: 0, p: {} }, { t: 0.3, p: { 1: -1.0, 15: 4.5 } }, { t: 0.4, p: { 1: -1.8, 15: 1.5 }, hit: true }, { t: 0.7, p: {} }] }
+            },
+            HIT: {
+                GUTS: { t: 0.4, k: [{ t: 0, p: { 1: -1.8 } }, { t: 0.2, p: { 1: -1.3 } }, { t: 0.4, p: { 1: -1.57 } }] },
+                SNAKE: { t: 0.4, k: [{ t: 0, p: { 1: -1.0 } }, { t: 0.2, p: { 1: -1.6 } }, { t: 0.4, p: { 1: -1.3 } }] }
+            }
+        };
+
+        class Skeleton {
+            constructor(type) { this.type = type; this.bones = JSON.parse(JSON.stringify(BONES[type])); this.angles = this.bones.map(b => b[2]); this.world = []; this.play('IDLE'); }
+            play(k) { if (this.cur == k && MOVES[k][this.type].loop) return; this.cur = k; this.anim = MOVES[k][this.type]; this.time = 0; this.hasHit = false; }
+            update(dt) {
+                this.time += dt; let t = this.time; if (this.anim.loop) t %= this.anim.t; else if (t > this.anim.t) t = this.anim.t;
+                const k = this.anim.k; let k1 = k[0], k2 = k[k.length - 1];
+                for (let i = 0; i < k.length - 1; i++) { if (t >= k[i].t && t < k[i + 1].t) { k1 = k[i]; k2 = k[i + 1]; break; } }
+                const f = (t - k1.t) / (k2.t - k1.t || 1);
+                for (let i = 0; i < this.angles.length; i++) { this.angles[i] = M.lerp(k1.p[i] !== undefined ? k1.p[i] : this.bones[i][2], k2.p[i] !== undefined ? k2.p[i] : this.bones[i][2], f); }
+                return (this.anim.k.find(k => k.hit && t >= k.t) && !this.hasHit);
+            }
+            compute(x, y, dir) {
+                this.world[0] = { x, y, a: 0 };
+                for (let i = 1; i < this.bones.length; i++) {
+                    const [p, l] = this.bones[i], P = this.world[p]; let a = this.angles[i];
+                    if (dir < 0) { if (i !== 1 && i !== 2) a = Math.PI - a; else a *= 1; }
+                    this.world[i] = { x: P.x + Math.cos(a) * l, y: P.y + Math.sin(a) * l, a };
+                }
+            }
+            draw(ctx, dir) {
+                // RIM LIGHTING & GLOW
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.shadowBlur = 15; ctx.shadowColor = this.type == 'GUTS' ? 'rgba(255,100,0,0.4)' : 'rgba(200,0,255,0.4)';
+                ctx.fillStyle = '#080808'; ctx.strokeStyle = '#080808';
+
+                const w = this.world;
+                const limb = (i, w1, w2, b = 0) => {
+                    const B = w[i], P = w[this.bones[i][0]], a = Math.atan2(B.y - P.y, B.x - P.x) + 1.57, c = Math.cos(a), s = Math.sin(a);
+                    ctx.beginPath(); ctx.moveTo(P.x + c * w1, P.y + s * w1);
+                    if (b) ctx.quadraticCurveTo((P.x + B.x) / 2 + c * (w1 + b), (P.y + B.y) / 2 + s * (w1 + b), B.x + c * w2, B.y + s * w2); else ctx.lineTo(B.x + c * w2, B.y + s * w2);
+                    ctx.lineTo(B.x - c * w2, B.y - s * w2);
+                    if (b) ctx.quadraticCurveTo((P.x + B.x) / 2 - c * (w1 + b), (P.y + B.y) / 2 - s * (w1 + b), P.x - c * w1, P.y - s * w1); else ctx.lineTo(P.x - c * w1, P.y - s * w1);
+                    ctx.fill(); ctx.stroke();
+                };
+                const arm = (u, l) => { if (this.type == 'GUTS') { limb(u, 14, 11, 5); limb(l, 10, 8, 3); } else { limb(u, 11, 8); limb(l, 8, 5); } };
+
+                if (dir > 0) { arm(6, 7); } else { arm(3, 4); }
+
+                if (this.type == 'GUTS') {
+                    limb(12, 15, 11, 6); limb(13, 11, 9, 4); limb(9, 15, 11, 6); limb(10, 11, 9, 4);
+                    const h = w[0], n = w[1], a = Math.atan2(n.y - h.y, n.x - h.x) + 1.57;
+                    ctx.beginPath(); ctx.moveTo(h.x + Math.cos(a) * 14, h.y + Math.sin(a) * 14); ctx.lineTo(n.x + Math.cos(a) * 32, n.y + Math.sin(a) * 32);
+                    ctx.lineTo(n.x - Math.cos(a) * 32, n.y - Math.sin(a) * 32); ctx.lineTo(h.x - Math.cos(a) * 14, h.y - Math.sin(a) * 14); ctx.fill();
+
+                    // SWORD
+                    const H = dir > 0 ? w[8] : w[5], A = dir > 0 ? w[7].a : w[4].a;
+                    if (H) {
+                        ctx.save(); ctx.translate(H.x, H.y); ctx.rotate(A + 1.5 + (dir < 0 ? 3 : 0));
+                        // Glow specifically for Dragon Slayer
+                        ctx.shadowColor = 'rgba(255,50,0,0.6)'; ctx.shadowBlur = 20;
+                        ctx.fillStyle = '#050505'; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.lineTo(18, -150); ctx.lineTo(0, -180); ctx.lineTo(-18, -150); ctx.fill();
+                        // Edge Highlight
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#333'; ctx.stroke();
+                        ctx.restore(); ctx.fillStyle = '#080808';
+                    }
+                } else {
+                    limb(12, 11, 7); limb(13, 7, 5); limb(9, 11, 7); limb(10, 7, 5);
+                    let t1 = w[15], t2 = w[16], t3 = w[17]; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(w[0].x, w[0].y); ctx.quadraticCurveTo(t1.x, t1.y, t2.x, t2.y); ctx.quadraticCurveTo(t2.x, t2.y, t3.x, t3.y); ctx.stroke();
+                    ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(w[0].x, w[0].y); ctx.lineTo(w[1].x, w[1].y); ctx.stroke();
+                }
+                ctx.beginPath(); ctx.arc(w[2].x, w[2].y, 13, 0, 7); ctx.fill();
+                // Eyes
+                ctx.shadowBlur = 5; ctx.shadowColor = this.type == 'GUTS' ? '#f00' : '#a0f'; ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(w[2].x + dir * 6, w[2].y - 3, 2, 0, 7); ctx.fill();
+                ctx.shadowBlur = 15; ctx.shadowColor = this.type == 'GUTS' ? '#f40' : '#a0f';
+
+                if (dir > 0) arm(3, 4); else arm(6, 7);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // ATMOSPHERE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        class Atmosphere {
+            constructor() {
+                this.rain = []; this.fire = []; this.wind = 3;
+                for (let i = 0; i < 150; i++) this.rain.push({ x: M.rand(0, 1300), y: M.rand(0, 720), s: M.rand(10, 20) });
+                this.torches = [{ x: 850, y: 520 }, { x: 1100, y: 520 }, { x: 200, y: 540 }];
+            }
+            update(dt) {
+                this.wind = 4 + Math.sin(Date.now() / 1200) * 2;
+                this.rain.forEach(r => {
+                    r.x -= (10 + this.wind) * 35 * dt; r.y += (30 + Math.abs(this.wind)) * 40 * dt;
+                    if (r.y > 720) { r.y = -20; r.x = M.rand(0, 1800); }
+                });
+                this.torches.forEach(t => {
+                    if (Math.random() < 0.7) this.fire.push({
+                        x: t.x + M.rand(-5, 5), y: t.y - 10, vx: M.rand(-15, 15) + this.wind * 10, vy: M.rand(-90, -40),
+                        l: M.rand(0.4, 1.0), s: M.rand(6, 14), c: `rgba(255,${M.rand(80, 180)},0,`
+                    });
+                });
+                for (let i = this.fire.length - 1; i >= 0; i--) {
+                    let f = this.fire[i]; f.l -= dt; f.x += f.vx * dt; f.y += f.vy * dt; if (f.l <= 0) this.fire.splice(i, 1);
+                }
+            }
+            drawFire(ctx) {
+                ctx.globalCompositeOperation = 'screen'; // Bloom effect
+                this.fire.forEach(f => {
+                    ctx.fillStyle = f.c + f.l + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.s, 0, 7); ctx.fill();
+                });
+                ctx.globalCompositeOperation = 'source-over';
+            }
+            drawRain(ctx) {
+                ctx.strokeStyle = `rgba(180,200,220,0.25)`; ctx.lineWidth = 2; ctx.beginPath();
+                this.rain.forEach(r => { ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - this.wind * 5, r.y + r.s * 5); });
+                ctx.stroke();
+            }
+            drawBG(ctx) {
+                const grd = ctx.createLinearGradient(0, 0, 0, 720);
+                grd.addColorStop(0, '#040202'); grd.addColorStop(1, '#251010'); ctx.fillStyle = grd; ctx.fillRect(0, 0, 1280, 720);
+
+                // Ruins
+                ctx.fillStyle = '#0a0404';
+                ctx.beginPath(); ctx.moveTo(0, 620);
+                ctx.lineTo(80, 450); ctx.lineTo(150, 550); ctx.lineTo(300, 400); ctx.lineTo(400, 550);
+                ctx.lineTo(600, 300); ctx.lineTo(800, 500); ctx.lineTo(950, 350); ctx.lineTo(1280, 500);
+                ctx.lineTo(1280, 720); ctx.lineTo(0, 720); ctx.fill();
+
+                ctx.fillStyle = 'rgba(15,0,0,0.5)'; ctx.beginPath(); ctx.arc(1000, 200, 150, 0, 7); ctx.fill(); // Snake Silhouette Head
+                ctx.beginPath(); ctx.moveTo(1000, 350); ctx.quadraticCurveTo(1200, 400, 1100, 620); ctx.lineWidth = 120; ctx.strokeStyle = 'rgba(15,0,0,0.5)'; ctx.stroke();
+
+                ctx.shadowBlur = 20; ctx.shadowColor = '#d40';
+                this.torches.forEach(t => { ctx.fillStyle = '#520'; ctx.fillRect(t.x - 5, t.y, 10, 100); });
+                ctx.shadowBlur = 0;
+
+                // Brand
+                ctx.font = '90px serif'; ctx.fillStyle = '#f00'; ctx.shadowBlur = 30; ctx.shadowColor = '#f00';
+                ctx.fillText('⚡', 600, 520); ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#060303'; ctx.fillRect(0, 620, 1280, 100);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // GAME
+        // ═══════════════════════════════════════════════════════════════════════════════
+        class Game {
+            constructor() {
+                this.ctx = document.getElementById('gameCanvas').getContext('2d');
+                this.env = new Atmosphere();
+                this.p1 = this.spawn('GUTS', 300); this.p2 = this.spawn('SNAKE', 900);
+                this.pt = []; this.timer = 99; this.slow = 1; this.shake = 0;
+                this.ui = { hp1: document.getElementById('hp1'), hp2: document.getElementById('hp2'), msg: document.getElementById('announce') };
+                document.getElementById('loading').classList.add('hide');
+                this.input = {}; window.onkeydown = e => this.input[e.code] = true; window.onkeyup = e => this.input[e.code] = false;
+                this.loop = this.loop.bind(this); this.last = performance.now(); requestAnimationFrame(this.loop);
+                setInterval(() => { if (this.timer > 0 && !this.done) { this.timer--; document.getElementById('timer').innerText = this.timer; } }, 1000);
+            }
+            spawn(type, x) { return { type, x, y: 620, vx: 0, vy: 0, hp: 100, max: 100, facing: type == 'GUTS' ? 1 : -1, skel: new Skeleton(type), state: 'IDLE' }; }
+            update(dt) {
+                if (this.done) return; dt *= this.slow;
+                // P1
+                if (this.p1.state == 'IDLE') {
+                    if (this.input['KeyD']) { this.p1.vx = 300; this.p1.facing = 1; } else if (this.input['KeyA']) { this.p1.vx = -300; this.p1.facing = -1; } else this.p1.vx = 0;
+                    if (this.input['KeyW'] && this.p1.y >= 619) this.p1.vy = -950;
+                    if (this.input['KeyJ']) this.act(this.p1, 'PUNCH'); if (this.input['KeyL']) this.act(this.p1, 'WEAPON');
+                }
+                // P2 AI
+                if (this.p2.state == 'IDLE') {
+                    let d = Math.abs(this.p1.x - this.p2.x);
+                    if (d > 180) { this.p2.vx = (this.p1.x > this.p2.x ? 1 : -1) * 220; this.p2.facing = Math.sign(this.p2.vx); }
+                    else { this.p2.vx = 0; if (Math.random() < 0.02) this.act(this.p2, Math.random() < 0.5 ? 'PUNCH' : 'WEAPON'); }
+                }
+                [this.p1, this.p2].forEach(p => {
+                    p.vy += 3000 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y > 620) { p.y = 620; p.vy = 0; }
+                    if (p.skel.update(dt)) this.hit(p, p === this.p1 ? this.p2 : this.p1);
+                    p.skel.compute(p.x, p.y - 75, p.facing);
+                    if (p.state != 'IDLE' && p.skel.time >= p.skel.anim.t) { p.state = 'IDLE'; p.skel.play('IDLE'); }
+                });
+                this.env.update(dt);
+                this.pt.forEach((p, i) => { p.l -= dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.l <= 0) this.pt.splice(i, 1); });
+                if (this.shake > 0) this.shake -= dt * 30; if (this.slow < 1) this.slow += dt * 2.0; // Faster recovery
+            }
+            act(p, m) { p.state = 'ATTACK'; p.vx = 0; p.skel.play(m); }
+            hit(a, v) {
+                a.skel.hasHit = true; let d = MOVES[a.skel.cur][a.type].dmg; v.hp -= d; v.vx = a.facing * 300; v.skel.play('HIT'); v.state = 'HIT';
+                this.slow = 0.1; this.shake = 15; // Harder shake
+                document.getElementById('flash').style.opacity = 0.6; setTimeout(() => document.getElementById('flash').style.opacity = 0, 60);
+                this.ui[v === this.p1 ? 'hp1' : 'hp2'].style.width = Math.max(0, v.hp) + '%';
+                for (let i = 0; i < 12; i++)this.pt.push({ x: v.x, y: v.y - 80, vx: M.rand(-250, 250), vy: M.rand(-500, -200), l: 0.6, c: '#900', s: M.rand(4, 8) });
+                if (v.hp <= 0) this.win(a);
+            }
+            win(w) { this.done = true; this.ui.msg.innerText = w.type + ' WINS!'; this.ui.msg.classList.add('show'); }
+            draw() {
+                const ctx = this.ctx;
+                ctx.save(); if (this.shake > 0) ctx.translate(M.rand(-this.shake, this.shake), M.rand(-this.shake, this.shake));
+                this.env.drawBG(ctx);
+                this.env.drawFire(ctx); // Fire glow behind
+                this.p1.skel.draw(ctx, this.p1.facing); this.p2.skel.draw(ctx, this.p2.facing);
+                this.pt.forEach(p => { ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s); });
+                this.env.drawRain(ctx); // Rain on top
+                ctx.restore();
+            }
+            loop(t) { let dt = Math.min((t - this.last) / 1000, 0.05); this.last = t; this.update(dt); this.draw(); requestAnimationFrame(this.loop); }
+        }
+        new Game();
+    </script>
+</body>
+
+</html>

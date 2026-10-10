@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Berserk: The Eclipse - Dark Fantasy RPG</title>
+    <link rel="icon" type="image/png" href="Gemini_Generated_Image_avu73mavu73mavu7.png">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #05040b;
+        }
+
+        #gameCanvas {
+            display: block;
+            image-rendering: auto;
+            background: #05040b;
+        }
+
+        #mapVideo {
+            display: none;
+        }
+
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(135deg, rgba(5, 4, 11, 0.85) 0%, rgba(26, 10, 10, 0.8) 50%, rgba(5, 4, 11, 0.9) 100%),
+                url('Gemini_Generated_Image_avu73mavu73mavu7.png') center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.8s ease-out;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-title {
+            font-size: 48px;
+            color: #bd1313;
+            text-shadow: 0 0 30px rgba(189, 19, 19, 0.8),
+                0 0 60px rgba(189, 19, 19, 0.4),
+                0 4px 0 #1a0a0a;
+            letter-spacing: 12px;
+            margin-bottom: 40px;
+            font-weight: 100;
+            text-transform: uppercase;
+        }
+
+        .loading-subtitle {
+            font-size: 14px;
+            color: #7a8599;
+            letter-spacing: 8px;
+            margin-bottom: 60px;
+            text-transform: uppercase;
+        }
+
+        .loading-bar-container {
+            width: 400px;
+            height: 4px;
+            background: rgba(122, 133, 153, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loading-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #bd1313, #ff7b00);
+            box-shadow: 0 0 20px rgba(189, 19, 19, 0.8);
+            transition: width 0.3s ease-out;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #4a4a5a;
+            letter-spacing: 4px;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            color: #7a8599;
+            font-size: 12px;
+            opacity: 0.6;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .ui-controls div {
+            margin-bottom: 5px;
+        }
+
+        .ui-controls span {
+            color: #bd1313;
+            font-weight: bold;
+        }
+
+        .ui-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #bd1313;
+            font-size: 18px;
+            letter-spacing: 8px;
+            text-shadow: 0 0 20px rgba(189, 19, 19, 0.5);
+            opacity: 0.8;
+        }
+
+        .ui-coords {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #4a4a5a;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        .ui-time {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            color: #7a8599;
+            font-size: 13px;
+            font-family: monospace;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            letter-spacing: 1px;
+        }
+
+        /* Scanline overlay */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg,
+                    rgba(0, 0, 0, 0.08) 0px,
+                    rgba(0, 0, 0, 0.08) 1px,
+                    transparent 1px,
+                    transparent 3px);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Heavy Vignette overlay */
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center,
+                    transparent 20%,
+                    rgba(5, 4, 11, 0.4) 50%,
+                    rgba(5, 4, 11, 0.75) 75%,
+                    rgba(0, 0, 0, 0.95) 100%);
+            pointer-events: none;
+            z-index: 6;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Hidden video element for animated background -->
+        <video id="mapVideo" loop muted playsinline>
+            <source src="Flag_Animation_and_Smoke_Video.mp4" type="video/mp4">
+        </video>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen">
+            <div class="loading-title">BERSERK</div>
+            <div class="loading-subtitle">The Eclipse Awaits</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar" id="loading-bar"></div>
+            </div>
+            <div class="loading-text" id="loading-text">LOADING ASSETS...</div>
+        </div>
+
+        <!-- Post-processing overlays -->
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <div class="ui-title">THE BRANDED ONE</div>
+            <div class="ui-controls">
+                <div><span>WASD</span> / <span>ARROWS</span> — Move</div>
+                <div><span>SHIFT</span> — Sprint</div>
+            </div>
+            <div class="ui-coords" id="ui-coords">X: 0 | Y: 0</div>
+            <div class="ui-time" id="ui-time">00:00:00</div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // BERSERK: THE ECLIPSE — DARK FANTASY RPG ENGINE
+        // High-Fidelity 16:9 Canvas Game with Animated Video Background
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        const CONFIG = {
+            // Player settings
+            PLAYER_SPEED: 320,
+            PLAYER_SPRINT_MULTIPLIER: 2.0, // 2x speed when sprinting
+            PLAYER_SCALE: 0.18,
+
+            // Camera settings - Maximum zoom to eliminate black areas
+            CAMERA_SMOOTHING: 0.08,
+            CAMERA_LOOKAHEAD: 80,
+            CAMERA_ZOOM: 1.8, // Maximum zoom - no black screen visible
+
+            // Rendering
+            ENABLE_FILM_GRAIN: true,
+            ENABLE_CHROMATIC_ABERRATION: true,
+            GRAIN_INTENSITY: 0.035,
+
+            // Debug
+            DEBUG_SHOW_WALLS: true, // ENABLED for testing wall placement
+
+            // Weather
+            RAIN_COUNT: 200,
+            EMBER_SPAWN_RATE: 0.12,
+
+            // Colors (The Blood Moon Palette)
+            PALETTE: {
+                voidBlack: '#05040b',
+                bloodMoon: '#bd1313',
+                wetMud: '#26211f',
+                coldSteel: '#7a8599',
+                torchlight: '#ff7b00',
+                bone: '#c9b896',
+                darkFlesh: '#4a3520',
+                crimson: '#8a0000'
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // ASSET LOADER
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class AssetLoader {
+            constructor() {
+                this.assets = {};
+                this.totalAssets = 0;
+                this.loadedAssets = 0;
+            }
+
+            async loadImage(name, src) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.assets[name] = img;
+                        this.loadedAssets++;
+                        this.updateLoadingBar();
+                        resolve(img);
+                    };
+                    img.onerror = () => reject(new Error(`Failed to load: ${src}`));
+                    img.src = src;
+                });
+            }
+
+            async loadVideo(name, videoElement) {
+                return new Promise((resolve, reject) => {
+                    videoElement.oncanplaythrough = () => {
+                        this.assets[name] = videoElement;
+                        this.loadedAssets++;
+                        this.updateLoadingBar();
+                        resolve(videoElement);
+                    };
+                    videoElement.onerror = () => reject(new Error('Failed to load video'));
+                    videoElement.load();
+                });
+            }
+
+            updateLoadingBar() {
+                const progress = (this.loadedAssets / this.totalAssets) * 100;
+                document.getElementById('loading-bar').style.width = `${progress}%`;
+            }
+
+            async loadAll() {
+                const videoElement = document.getElementById('mapVideo');
+
+                const imageAssets = [
+                    { name: 'player_front', src: 'front.png' },
+                    { name: 'player_back', src: 'back.png' },
+                    { name: 'player_left', src: 'left.png' },
+                    { name: 'player_right', src: 'right.png' },
+                    { name: 'player_run_left', src: 'running left.png' },
+                    { name: 'player_run_right', src: 'running right.png' },
+                    { name: 'map_fallback', src: 'Gemini_Generated_Image_lhx13llhx13llhx1.png' },
+                    { name: 'second_map', src: 'SECOND MAP.png' }
+                ];
+
+                this.totalAssets = imageAssets.length + 1; // +1 for video
+
+                // Load video
+                const videoPromise = this.loadVideo('mapVideo', videoElement);
+
+                // Load images
+                const imagePromises = imageAssets.map(asset =>
+                    this.loadImage(asset.name, asset.src)
+                );
+
+                await Promise.all([videoPromise, ...imagePromises]);
+
+                // Assets loaded
+
+                document.getElementById('loading-text').textContent = 'ENTERING THE ECLIPSE...';
+                await new Promise(resolve => setTimeout(resolve, 400));
+
+                return this.assets;
+            }
+
+            get(name) {
+                return this.assets[name];
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // COLLISION SYSTEM - Polygons, Rectangles, and Transition Zones
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // Rectangle collision wall
+        class CollisionWall {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.left = x - width / 2;
+                this.right = x + width / 2;
+                this.top = y - height / 2;
+                this.bottom = y + height / 2;
+                this.type = 'rect';
+            }
+
+            intersects(entityX, entityY, entityRadius) {
+                const closestX = Utils.clamp(entityX, this.left, this.right);
+                const closestY = Utils.clamp(entityY, this.top, this.bottom);
+                const distX = entityX - closestX;
+                const distY = entityY - closestY;
+                return (distX * distX + distY * distY) < (entityRadius * entityRadius);
+            }
+
+            draw(ctx, camera) {
+                const screen = camera.worldToScreen(this.x, this.y);
+                const w = this.width * camera.zoom;
+                const h = this.height * camera.zoom;
+                ctx.strokeStyle = 'rgba(189, 19, 19, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(screen.x - w / 2, screen.y - h / 2, w, h);
+            }
+        }
+
+        // Triangle collision for corners and angles
+        class CollisionTriangle {
+            constructor(x1, y1, x2, y2, x3, y3) {
+                this.points = [{ x: x1, y: y1 }, { x: x2, y: y2 }, { x: x3, y: y3 }];
+                this.type = 'triangle';
+            }
+
+            intersects(entityX, entityY, entityRadius) {
+                // Check if point is inside triangle using barycentric coordinates
+                const p = { x: entityX, y: entityY };
+                const a = this.points[0], b = this.points[1], c = this.points[2];
+
+                const area = 0.5 * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y);
+                const s = 1 / (2 * area) * (a.y * c.x - a.x * c.y + (c.y - a.y) * p.x + (a.x - c.x) * p.y);
+                const t = 1 / (2 * area) * (a.x * b.y - a.y * b.x + (a.y - b.y) * p.x + (b.x - a.x) * p.y);
+
+                if (s > -0.02 && t > -0.02 && (1 - s - t) > -0.02) {
+                    return true;
+                }
+
+                // Also check distance to edges for circle collision
+                for (let i = 0; i < 3; i++) {
+                    const p1 = this.points[i];
+                    const p2 = this.points[(i + 1) % 3];
+                    if (this.distToSegment(entityX, entityY, p1.x, p1.y, p2.x, p2.y) < entityRadius) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            distToSegment(px, py, x1, y1, x2, y2) {
+                const dx = x2 - x1, dy = y2 - y1;
+                const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+                const nearX = x1 + t * dx, nearY = y1 + t * dy;
+                return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
+            }
+
+            draw(ctx, camera) {
+                ctx.beginPath();
+                const p0 = camera.worldToScreen(this.points[0].x, this.points[0].y);
+                ctx.moveTo(p0.x, p0.y);
+                for (let i = 1; i < 3; i++) {
+                    const p = camera.worldToScreen(this.points[i].x, this.points[i].y);
+                    ctx.lineTo(p.x, p.y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Map transition zone
+        class TransitionZone {
+            constructor(x, y, width, height, targetMap) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.left = x - width / 2;
+                this.right = x + width / 2;
+                this.top = y - height / 2;
+                this.bottom = y + height / 2;
+                this.targetMap = targetMap;
+                this.type = 'transition';
+            }
+
+            contains(entityX, entityY) {
+                return entityX >= this.left && entityX <= this.right &&
+                    entityY >= this.top && entityY <= this.bottom;
+            }
+
+            draw(ctx, camera) {
+                const screen = camera.worldToScreen(this.x, this.y);
+                const w = this.width * camera.zoom;
+                const h = this.height * camera.zoom;
+                ctx.fillStyle = 'rgba(0, 100, 255, 0.3)';
+                ctx.fillRect(screen.x - w / 2, screen.y - h / 2, w, h);
+                ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(screen.x - w / 2, screen.y - h / 2, w, h);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class Utils {
+            static lerp(a, b, t) {
+                return a + (b - a) * t;
+            }
+
+            static clamp(val, min, max) {
+                return Math.max(min, Math.min(max, val));
+            }
+
+            static random(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            static randomInt(min, max) {
+                return Math.floor(Utils.random(min, max + 1));
+            }
+
+            static distance(x1, y1, x2, y2) {
+                return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INPUT HANDLER
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class InputHandler {
+            constructor() {
+                this.keys = {};
+                this.justPressed = {};
+
+                window.addEventListener('keydown', (e) => {
+                    if (!this.keys[e.code]) {
+                        this.justPressed[e.code] = true;
+                    }
+                    this.keys[e.code] = true;
+
+                    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                        e.preventDefault();
+                    }
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+
+                window.addEventListener('blur', () => {
+                    this.keys = {};
+                });
+            }
+
+            isDown(key) {
+                return this.keys[key] || false;
+            }
+
+            wasJustPressed(key) {
+                const pressed = this.justPressed[key] || false;
+                this.justPressed[key] = false;
+                return pressed;
+            }
+
+            getMovementVector() {
+                let x = 0, y = 0;
+
+                if (this.isDown('KeyW') || this.isDown('ArrowUp')) y = -1;
+                if (this.isDown('KeyS') || this.isDown('ArrowDown')) y = 1;
+                if (this.isDown('KeyA') || this.isDown('ArrowLeft')) x = -1;
+                if (this.isDown('KeyD') || this.isDown('ArrowRight')) x = 1;
+
+                if (x !== 0 && y !== 0) {
+                    const factor = 0.7071;
+                    x *= factor;
+                    y *= factor;
+                }
+
+                return { x, y };
+            }
+
+            isSprinting() {
+                return this.isDown('ShiftLeft') || this.isDown('ShiftRight');
+            }
+
+            update() {
+                this.justPressed = {};
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // SPRING CAMERA SYSTEM WITH ZOOM
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class Camera {
+            constructor(width, height) {
+                this.x = 0;
+                this.y = 0;
+                this.targetX = 0;
+                this.targetY = 0;
+                this.width = width;
+                this.height = height;
+                this.smoothing = CONFIG.CAMERA_SMOOTHING;
+                this.lookahead = CONFIG.CAMERA_LOOKAHEAD;
+                this.zoom = CONFIG.CAMERA_ZOOM;
+
+                this.shakeIntensity = 0;
+                this.shakeDecay = 5;
+                this.offsetX = 0;
+                this.offsetY = 0;
+            }
+
+            follow(target, lookVector = { x: 0, y: 0 }) {
+                this.targetX = target.x + lookVector.x * this.lookahead;
+                this.targetY = target.y + lookVector.y * this.lookahead;
+            }
+
+            shake(intensity) {
+                this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+            }
+
+            update(dt) {
+                this.x = Utils.lerp(this.x, this.targetX, this.smoothing);
+                this.y = Utils.lerp(this.y, this.targetY, this.smoothing);
+
+                if (this.shakeIntensity > 0) {
+                    this.offsetX = Utils.random(-this.shakeIntensity, this.shakeIntensity);
+                    this.offsetY = Utils.random(-this.shakeIntensity, this.shakeIntensity);
+                    this.shakeIntensity -= this.shakeDecay * dt;
+                    if (this.shakeIntensity < 0) this.shakeIntensity = 0;
+                } else {
+                    this.offsetX = 0;
+                    this.offsetY = 0;
+                }
+            }
+
+            worldToScreen(worldX, worldY) {
+                return {
+                    x: (worldX - this.x) * this.zoom + this.width / 2 + this.offsetX,
+                    y: (worldY - this.y) * this.zoom + this.height / 2 + this.offsetY
+                };
+            }
+
+            screenToWorld(screenX, screenY) {
+                return {
+                    x: (screenX - this.width / 2 - this.offsetX) / this.zoom + this.x,
+                    y: (screenY - this.height / 2 - this.offsetY) / this.zoom + this.y
+                };
+            }
+
+            resize(width, height) {
+                this.width = width;
+                this.height = height;
+            }
+
+            getBounds() {
+                const halfW = (this.width / this.zoom) / 2;
+                const halfH = (this.height / this.zoom) / 2;
+                return {
+                    left: this.x - halfW,
+                    right: this.x + halfW,
+                    top: this.y - halfH,
+                    bottom: this.y + halfH
+                };
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PLAYER ENTITY
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class Player {
+            constructor(x, y, assets) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.assets = assets;
+
+                this.speed = CONFIG.PLAYER_SPEED;
+                this.sprintMultiplier = CONFIG.PLAYER_SPRINT_MULTIPLIER;
+                this.isSprinting = false;
+                this.isMoving = false;
+
+                this.direction = 'front';
+                this.lastMoveDirection = { x: 0, y: 0 };
+
+                // Animation system - professional frame-based animation
+                this.animationTime = 0;
+                this.animationFrame = 0;
+                this.frameTime = 0;
+                this.walkCycleSpeed = 0.12; // Time per frame in seconds
+                this.runCycleSpeed = 0.08; // Faster for running
+
+                // Visual effects
+                this.bobAmount = 0;
+                this.leanAmount = 0; // Lean into movement direction
+                this.shadowPulse = 0;
+                this.stepBounce = 0; // Additional bounce on steps
+
+                this.scale = CONFIG.PLAYER_SCALE;
+                this.updateDimensions();
+                this.collisionRadius = 25;
+            }
+
+            updateDimensions() {
+                const sprite = this.assets['player_front'];
+                if (sprite) {
+                    this.width = sprite.width * this.scale;
+                    this.height = sprite.height * this.scale;
+                }
+            }
+
+            update(dt, input, mapBounds, walls = []) {
+                const moveVector = input.getMovementVector();
+                this.isSprinting = input.isSprinting() && (moveVector.x !== 0 || moveVector.y !== 0);
+                this.isMoving = moveVector.x !== 0 || moveVector.y !== 0;
+
+                const currentSpeed = this.speed * (this.isSprinting ? this.sprintMultiplier : 1);
+                this.vx = moveVector.x * currentSpeed;
+                this.vy = moveVector.y * currentSpeed;
+
+                // Store old position for collision response
+                const oldX = this.x;
+                const oldY = this.y;
+
+                // Apply movement
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                // Check wall collisions
+                for (const wall of walls) {
+                    if (wall.intersects(this.x, this.y, this.collisionRadius)) {
+                        // Check X collision separately
+                        if (wall.intersects(this.x, oldY, this.collisionRadius)) {
+                            this.x = oldX;
+                        }
+                        // Check Y collision separately
+                        if (wall.intersects(oldX, this.y, this.collisionRadius)) {
+                            this.y = oldY;
+                        }
+                        // If still colliding, revert both
+                        if (wall.intersects(this.x, this.y, this.collisionRadius)) {
+                            this.x = oldX;
+                            this.y = oldY;
+                        }
+                    }
+                }
+
+                // Map boundary clamping
+                const halfWidth = this.width / 2;
+                const halfHeight = this.height / 2;
+                this.x = Utils.clamp(this.x, mapBounds.left + halfWidth, mapBounds.right - halfWidth);
+                this.y = Utils.clamp(this.y, mapBounds.top + halfHeight, mapBounds.bottom - halfHeight);
+
+                // Update direction
+                if (this.isMoving) {
+                    this.lastMoveDirection = { x: moveVector.x, y: moveVector.y };
+                    if (Math.abs(moveVector.x) > Math.abs(moveVector.y)) {
+                        this.direction = moveVector.x > 0 ? 'right' : 'left';
+                    } else {
+                        this.direction = moveVector.y > 0 ? 'front' : 'back';
+                    }
+                }
+
+                // Professional animation cycle
+                if (this.isMoving) {
+                    const cycleSpeed = this.isSprinting ? this.runCycleSpeed : this.walkCycleSpeed;
+                    this.frameTime += dt;
+
+                    if (this.frameTime >= cycleSpeed) {
+                        this.frameTime = 0;
+                        this.animationFrame = (this.animationFrame + 1) % 2; // Alternate 0 and 1
+                        this.stepBounce = 3; // Bounce on frame change (step)
+                    }
+
+                    // Smooth animation progress
+                    this.animationTime += dt * (this.isSprinting ? 12 : 8);
+                    this.bobAmount = Math.sin(this.animationTime * 2) * (this.isSprinting ? 3 : 2);
+                    this.leanAmount = moveVector.x * (this.isSprinting ? 4 : 2);
+                } else {
+                    // Reset when stopped
+                    this.animationFrame = 0;
+                    this.frameTime = 0;
+                    this.bobAmount = Math.sin(this.animationTime * 0.5) * 0.5; // Subtle idle breathing
+                    this.leanAmount *= 0.9; // Smooth return to center
+                    this.animationTime += dt;
+                }
+
+                // Decay step bounce
+                this.stepBounce *= 0.85;
+                this.shadowPulse += dt * 2;
+            }
+
+            getCurrentSprite() {
+                // Professional sprite selection with animation frames
+                // Alternate between normal and run sprites for walking animation
+
+                if (this.direction === 'left') {
+                    // Alternate between left and run_left for walking effect
+                    if (this.isMoving) {
+                        return this.animationFrame === 0
+                            ? this.assets['player_left']
+                            : this.assets['player_run_left'];
+                    }
+                    return this.assets['player_left'];
+                }
+
+                if (this.direction === 'right') {
+                    // Alternate between right and run_right for walking effect
+                    if (this.isMoving) {
+                        return this.animationFrame === 0
+                            ? this.assets['player_right']
+                            : this.assets['player_run_right'];
+                    }
+                    return this.assets['player_right'];
+                }
+
+                // Front and back - just use the static sprites
+                // but with enhanced bobbing for walking effect
+                if (this.direction === 'front') return this.assets['player_front'];
+                if (this.direction === 'back') return this.assets['player_back'];
+
+                return this.assets['player_front'];
+            }
+
+            draw(ctx, camera, isReflection = false) {
+                const sprite = this.getCurrentSprite();
+                if (!sprite) return;
+                if (isReflection) return;
+
+                const screen = camera.worldToScreen(this.x, this.y);
+                const drawWidth = sprite.width * this.scale * camera.zoom;
+                const drawHeight = sprite.height * this.scale * camera.zoom;
+
+                ctx.save();
+
+                // Ground shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                const shadowScale = 0.6 + Math.sin(this.shadowPulse) * 0.03;
+                ctx.beginPath();
+                ctx.ellipse(
+                    screen.x,
+                    screen.y + drawHeight / 2 - 3 + this.stepBounce,
+                    drawWidth / 2.5 * shadowScale,
+                    8,
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // Apply visual effects for realistic movement
+                ctx.translate(screen.x, screen.y);
+
+                // Lean effect when moving horizontally
+                if (this.leanAmount !== 0) {
+                    ctx.rotate(this.leanAmount * 0.01);
+                }
+
+                // Draw sprite with bobbing and step bounce
+                const yOffset = this.bobAmount - this.stepBounce;
+                ctx.drawImage(
+                    sprite,
+                    -drawWidth / 2,
+                    -drawHeight / 2 + yOffset,
+                    drawWidth,
+                    drawHeight
+                );
+
+                ctx.restore();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PARTICLE SYSTEMS
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class RainParticle {
+            constructor(camera) {
+                this.reset(camera, true);
+            }
+
+            reset(camera, initial = false) {
+                const bounds = camera.getBounds();
+                this.x = Utils.random(bounds.left - 300, bounds.right + 300);
+                this.y = initial
+                    ? Utils.random(bounds.top - 150, bounds.bottom + 150)
+                    : bounds.top - 80;
+                this.vx = Utils.random(-60, -30);
+                this.vy = Utils.random(700, 1000);
+                this.length = Utils.random(25, 45);
+                this.opacity = Utils.random(0.08, 0.2);
+                this.thickness = Utils.random(1, 1.5);
+            }
+
+            update(dt, camera, splashes) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                const bounds = camera.getBounds();
+                if (this.y > bounds.bottom + 80) {
+                    splashes.push(new SplashParticle(this.x, bounds.bottom + 80));
+                    this.reset(camera);
+                }
+            }
+
+            draw(ctx, camera) {
+                const screen = camera.worldToScreen(this.x, this.y);
+                const endScreen = camera.worldToScreen(
+                    this.x - (this.vx / this.vy) * this.length,
+                    this.y - this.length
+                );
+
+                ctx.strokeStyle = `rgba(160, 180, 200, ${this.opacity})`;
+                ctx.lineWidth = this.thickness;
+                ctx.beginPath();
+                ctx.moveTo(screen.x, screen.y);
+                ctx.lineTo(endScreen.x, endScreen.y);
+                ctx.stroke();
+            }
+        }
+
+        class SplashParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.life = 1;
+                this.particles = [];
+
+                for (let i = 0; i < 3; i++) {
+                    this.particles.push({
+                        x: 0, y: 0,
+                        vx: Utils.random(-40, 40),
+                        vy: Utils.random(-80, -30),
+                        size: Utils.random(1, 2)
+                    });
+                }
+            }
+
+            update(dt) {
+                this.life -= dt * 4;
+                for (const p of this.particles) {
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.vy += 250 * dt;
+                }
+            }
+
+            draw(ctx, camera) {
+                const screen = camera.worldToScreen(this.x, this.y);
+                ctx.fillStyle = `rgba(160, 180, 200, ${this.life * 0.3})`;
+
+                for (const p of this.particles) {
+                    const pScreen = camera.worldToScreen(this.x + p.x, this.y + p.y);
+                    ctx.beginPath();
+                    ctx.arc(pScreen.x, pScreen.y, p.size * this.life * camera.zoom, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        class EmberParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = Utils.random(-25, 25);
+                this.vy = Utils.random(-70, -35);
+                this.life = Utils.random(1.2, 2.8);
+                this.maxLife = this.life;
+                this.size = Utils.random(1.5, 3.5);
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vx += Utils.random(-25, 25) * dt;
+                this.vy -= 12 * dt;
+                this.life -= dt;
+            }
+
+            draw(ctx, camera) {
+                const screen = camera.worldToScreen(this.x, this.y);
+                const lifeRatio = this.life / this.maxLife;
+                const size = this.size * camera.zoom;
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+
+                const gradient = ctx.createRadialGradient(
+                    screen.x, screen.y, 0,
+                    screen.x, screen.y, size * 3 * lifeRatio
+                );
+                gradient.addColorStop(0, `rgba(255, 200, 100, ${lifeRatio * 0.7})`);
+                gradient.addColorStop(0.5, `rgba(255, 123, 0, ${lifeRatio * 0.35})`);
+                gradient.addColorStop(1, 'rgba(255, 80, 0, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(screen.x, screen.y, size * 3 * lifeRatio, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = `rgba(255, 255, 200, ${lifeRatio})`;
+                ctx.beginPath();
+                ctx.arc(screen.x, screen.y, size * lifeRatio, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // LIGHT SOURCE - Positioned for the map
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class LightSource {
+            constructor(x, y, radius, color = CONFIG.PALETTE.torchlight) {
+                this.x = x;
+                this.y = y;
+                this.baseRadius = radius;
+                this.radius = radius;
+                this.color = color;
+                this.flickerOffset = Math.random() * 1000;
+                this.embers = [];
+                this.emberTimer = 0;
+            }
+
+            update(dt) {
+                const time = Date.now() + this.flickerOffset;
+                this.radius = this.baseRadius + Math.sin(time * 0.01) * 12 + Math.sin(time * 0.025) * 6;
+
+                this.emberTimer += dt;
+                if (this.emberTimer > CONFIG.EMBER_SPAWN_RATE) {
+                    this.emberTimer = 0;
+                    if (Math.random() < 0.6) {
+                        this.embers.push(new EmberParticle(this.x, this.y - 15));
+                    }
+                }
+
+                for (let i = this.embers.length - 1; i >= 0; i--) {
+                    this.embers[i].update(dt);
+                    if (this.embers[i].life <= 0) {
+                        this.embers.splice(i, 1);
+                    }
+                }
+            }
+
+            drawEmbers(ctx, camera) {
+                for (const ember of this.embers) {
+                    ember.draw(ctx, camera);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // RENDERER
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class Renderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d', { alpha: false });
+                this.width = 0;
+                this.height = 0;
+
+                this.grainCanvas = document.createElement('canvas');
+                this.grainCtx = this.grainCanvas.getContext('2d');
+
+                this.resize();
+            }
+
+            resize() {
+                const container = document.getElementById('game-container');
+                // Fill entire screen - no aspect ratio constraint
+                this.width = container.clientWidth;
+                this.height = container.clientHeight;
+
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.canvas.style.width = `${this.width}px`;
+                this.canvas.style.height = `${this.height}px`;
+
+                this.grainCanvas.width = this.width;
+                this.grainCanvas.height = this.height;
+            }
+
+            clear() {
+                this.ctx.fillStyle = CONFIG.PALETTE.voidBlack;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+            }
+
+            drawVideoBackground(video, camera) {
+                if (!video || video.readyState < 2) return;
+
+                const screen = camera.worldToScreen(0, 0);
+                const drawWidth = video.videoWidth * camera.zoom;
+                const drawHeight = video.videoHeight * camera.zoom;
+
+                this.ctx.drawImage(
+                    video,
+                    screen.x - drawWidth / 2,
+                    screen.y - drawHeight / 2,
+                    drawWidth,
+                    drawHeight
+                );
+            }
+
+            drawImageBackground(image, camera) {
+                if (!image) return;
+
+                const screen = camera.worldToScreen(0, 0);
+                const drawWidth = image.width * camera.zoom;
+                const drawHeight = image.height * camera.zoom;
+
+                this.ctx.drawImage(
+                    image,
+                    screen.x - drawWidth / 2,
+                    screen.y - drawHeight / 2,
+                    drawWidth,
+                    drawHeight
+                );
+            }
+
+            drawLighting(lights, player, camera) {
+                this.ctx.save();
+
+                // Darkness overlay - slightly lighter to see more
+                this.ctx.fillStyle = 'rgba(5, 4, 11, 0.55)';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                // Additive blending for lights
+                this.ctx.globalCompositeOperation = 'lighter';
+
+                // Draw light sources
+                for (const light of lights) {
+                    const screen = camera.worldToScreen(light.x, light.y);
+                    const radius = light.radius * camera.zoom;
+
+                    const gradient = this.ctx.createRadialGradient(
+                        screen.x, screen.y, 0,
+                        screen.x, screen.y, radius
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 255, 220, 0.45)');
+                    gradient.addColorStop(0.1, 'rgba(255, 210, 140, 0.35)');
+                    gradient.addColorStop(0.3, 'rgba(255, 140, 50, 0.2)');
+                    gradient.addColorStop(0.6, 'rgba(180, 70, 20, 0.08)');
+                    gradient.addColorStop(1, 'rgba(80, 25, 10, 0)');
+
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+
+                // Player ambient light
+                const playerScreen = camera.worldToScreen(player.x, player.y);
+                const playerRadius = 120 * camera.zoom;
+                const playerGradient = this.ctx.createRadialGradient(
+                    playerScreen.x, playerScreen.y, 0,
+                    playerScreen.x, playerScreen.y, playerRadius
+                );
+                playerGradient.addColorStop(0, 'rgba(100, 90, 110, 0.2)');
+                playerGradient.addColorStop(0.5, 'rgba(60, 55, 70, 0.1)');
+                playerGradient.addColorStop(1, 'rgba(30, 28, 40, 0)');
+                this.ctx.fillStyle = playerGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(playerScreen.x, playerScreen.y, playerRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                this.ctx.restore();
+
+                // Canvas vignette (additional layer)
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'multiply';
+
+                const vignetteGradient = this.ctx.createRadialGradient(
+                    this.width / 2, this.height / 2, this.height * 0.2,
+                    this.width / 2, this.height / 2, this.height * 0.9
+                );
+                vignetteGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                vignetteGradient.addColorStop(0.4, 'rgba(220, 215, 230, 1)');
+                vignetteGradient.addColorStop(0.7, 'rgba(120, 110, 130, 1)');
+                vignetteGradient.addColorStop(1, 'rgba(20, 18, 25, 1)');
+
+                this.ctx.fillStyle = vignetteGradient;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.ctx.restore();
+            }
+
+            drawRain(rainParticles, camera) {
+                for (const drop of rainParticles) {
+                    drop.draw(this.ctx, camera);
+                }
+            }
+
+            drawSplashes(splashes, camera) {
+                for (const splash of splashes) {
+                    splash.draw(this.ctx, camera);
+                }
+            }
+
+            applyFilmGrain() {
+                if (!CONFIG.ENABLE_FILM_GRAIN) return;
+
+                const imageData = this.grainCtx.createImageData(this.width, this.height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 28;
+                    data[i] = 128 + noise;
+                    data[i + 1] = 128 + noise;
+                    data[i + 2] = 128 + noise;
+                    data[i + 3] = Math.abs(noise) * 1.8;
+                }
+
+                this.grainCtx.putImageData(imageData, 0, 0);
+
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'overlay';
+                this.ctx.globalAlpha = CONFIG.GRAIN_INTENSITY;
+                this.ctx.drawImage(this.grainCanvas, 0, 0);
+                this.ctx.restore();
+            }
+
+            applyChromaticAberration() {
+                if (!CONFIG.ENABLE_CHROMATIC_ABERRATION) return;
+
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'lighter';
+
+                const leftGradient = this.ctx.createLinearGradient(0, 0, 80, 0);
+                leftGradient.addColorStop(0, 'rgba(255, 30, 30, 0.06)');
+                leftGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                this.ctx.fillStyle = leftGradient;
+                this.ctx.fillRect(0, 0, 80, this.height);
+
+                const rightGradient = this.ctx.createLinearGradient(this.width - 80, 0, this.width, 0);
+                rightGradient.addColorStop(0, 'rgba(0, 180, 255, 0)');
+                rightGradient.addColorStop(1, 'rgba(0, 180, 255, 0.06)');
+                this.ctx.fillStyle = rightGradient;
+                this.ctx.fillRect(this.width - 80, 0, 80, this.height);
+
+                this.ctx.restore();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // MAIN GAME ENGINE
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        class GameEngine {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.renderer = new Renderer(this.canvas);
+                this.input = new InputHandler();
+                this.camera = new Camera(this.renderer.width, this.renderer.height);
+
+                this.assets = null;
+                this.mapVideo = null;
+                this.player = null;
+                this.mapBounds = { left: 0, right: 0, top: 0, bottom: 0 };
+
+                this.lights = [];
+                this.walls = [];
+                this.transitionZone = null;
+                this.rainParticles = [];
+                this.splashes = [];
+
+                this.lastTime = 0;
+                this.running = false;
+                this.startTime = Date.now();
+                this.currentMap = 1; // Track which map we're on
+                this.isTransitioning = false;
+
+                this.uiCoords = document.getElementById('ui-coords');
+                this.uiTime = document.getElementById('ui-time');
+            }
+
+            async init() {
+                const loader = new AssetLoader();
+                this.assets = await loader.loadAll();
+
+                this.mapVideo = this.assets['mapVideo'];
+
+                const mapWidth = this.mapVideo.videoWidth;
+                const mapHeight = this.mapVideo.videoHeight;
+
+                this.mapBounds = {
+                    left: -mapWidth / 2,
+                    right: mapWidth / 2,
+                    top: -mapHeight / 2,
+                    bottom: mapHeight / 2
+                };
+
+                this.player = new Player(0, 50, this.assets);
+
+                // Create collision walls based on map
+                this.createWalls();
+
+                // Create lights positioned for the map content
+                this.createLightSources();
+
+                for (let i = 0; i < CONFIG.RAIN_COUNT; i++) {
+                    this.rainParticles.push(new RainParticle(this.camera));
+                }
+
+                window.addEventListener('resize', () => {
+                    this.renderer.resize();
+                    this.camera.resize(this.renderer.width, this.renderer.height);
+                });
+
+                document.getElementById('loading-screen').classList.add('hidden');
+                this.mapVideo.play();
+
+                this.running = true;
+                requestAnimationFrame((time) => this.gameLoop(time));
+            }
+
+            createWalls() {
+                const mapW = this.mapBounds.right - this.mapBounds.left;
+                const mapH = this.mapBounds.bottom - this.mapBounds.top;
+
+                // Based on reference: RED = walkable path, BLUE = transition zone
+                // The path is cross-shaped: vertical path up to top, horizontal at mid, vertical down sides, horizontal at bottom
+                // Walls form the EDGES/BOUNDARIES of this walkable area
+
+                // ========== UPPER VERTICAL CORRIDOR (center path going up) ==========
+                // Left edge of upper corridor
+                this.walls.push(new CollisionWall(-55, -mapH * 0.35, 25, 160));
+                // Right edge of upper corridor  
+                this.walls.push(new CollisionWall(55, -mapH * 0.35, 25, 160));
+
+                // ========== MAIN HORIZONTAL CORRIDOR (middle of map) ==========
+                // Top edge of horizontal corridor - left part
+                this.walls.push(new CollisionWall(-mapW * 0.20, -mapH * 0.18, 280, 25));
+                // Top edge of horizontal corridor - right part
+                this.walls.push(new CollisionWall(mapW * 0.20, -mapH * 0.18, 280, 25));
+
+                // Bottom edge of horizontal corridor - left part
+                this.walls.push(new CollisionWall(-mapW * 0.18, mapH * 0.02, 240, 25));
+                // Bottom edge of horizontal corridor - right part
+                this.walls.push(new CollisionWall(mapW * 0.18, mapH * 0.02, 240, 25));
+
+                // ========== LEFT VERTICAL PATH (going down from horizontal) ==========
+                // Left outer edge
+                this.walls.push(new CollisionWall(-mapW * 0.38, mapH * 0.18, 25, 280));
+                // Right inner edge
+                this.walls.push(new CollisionWall(-mapW * 0.28, mapH * 0.12, 25, 180));
+
+                // ========== RIGHT VERTICAL PATH (going down from horizontal) ==========
+                // Right outer edge
+                this.walls.push(new CollisionWall(mapW * 0.38, mapH * 0.18, 25, 280));
+                // Left inner edge
+                this.walls.push(new CollisionWall(mapW * 0.28, mapH * 0.12, 25, 180));
+
+                // ========== BOTTOM HORIZONTAL PATH (around castle) ==========
+                // Outer bottom edge
+                this.walls.push(new CollisionWall(0, mapH * 0.40, 650, 25));
+                // Inner top edge (castle wall side)
+                this.walls.push(new CollisionWall(-mapW * 0.12, mapH * 0.28, 200, 25));
+                this.walls.push(new CollisionWall(mapW * 0.12, mapH * 0.28, 200, 25));
+
+                // ========== CORNER FILLS - small walls to close gaps ==========
+                // Where upper corridor meets horizontal
+                this.walls.push(new CollisionWall(-90, -mapH * 0.22, 50, 50));
+                this.walls.push(new CollisionWall(90, -mapH * 0.22, 50, 50));
+
+                // Where horizontal meets left vertical
+                this.walls.push(new CollisionWall(-mapW * 0.32, mapH * 0.02, 40, 40));
+                // Where horizontal meets right vertical
+                this.walls.push(new CollisionWall(mapW * 0.32, mapH * 0.02, 40, 40));
+
+                // Where left vertical meets bottom horizontal
+                this.walls.push(new CollisionWall(-mapW * 0.28, mapH * 0.28, 40, 40));
+                // Where right vertical meets bottom horizontal
+                this.walls.push(new CollisionWall(mapW * 0.28, mapH * 0.28, 40, 40));
+
+                // ========== TRANSITION ZONE (blue area at top) ==========
+                this.transitionZone = new TransitionZone(0, -mapH * 0.47, 120, 50, 'SECOND MAP.png');
+            }
+
+            createLightSources() {
+                const mapW = this.mapBounds.right - this.mapBounds.left;
+                const mapH = this.mapBounds.bottom - this.mapBounds.top;
+
+                // Lights positioned according to map features
+                // Flag/banner area at top center, smoke effects, torch positions
+                const lightPositions = [
+                    // Main flag/banner area - top center of map
+                    { x: 0, y: -mapH * 0.35, radius: 220 },
+
+                    // Torches flanking the flag
+                    { x: -mapW * 0.15, y: -mapH * 0.3, radius: 160 },
+                    { x: mapW * 0.15, y: -mapH * 0.3, radius: 160 },
+
+                    // Ground fire/smoke areas
+                    { x: -mapW * 0.25, y: mapH * 0.1, radius: 140 },
+                    { x: mapW * 0.25, y: mapH * 0.1, radius: 140 },
+                    { x: 0, y: mapH * 0.2, radius: 180 },
+
+                    // Ambient corner lights for atmosphere
+                    { x: -mapW * 0.4, y: -mapH * 0.4, radius: 120 },
+                    { x: mapW * 0.4, y: -mapH * 0.4, radius: 120 },
+                    { x: -mapW * 0.4, y: mapH * 0.35, radius: 120 },
+                    { x: mapW * 0.4, y: mapH * 0.35, radius: 120 },
+                ];
+
+                for (const pos of lightPositions) {
+                    this.lights.push(new LightSource(pos.x, pos.y, pos.radius));
+                }
+            }
+
+            gameLoop(currentTime) {
+                if (!this.running) return;
+
+                const dt = Math.min((currentTime - this.lastTime) / 1000, 0.05);
+                this.lastTime = currentTime;
+
+                this.update(dt);
+                this.render();
+
+                requestAnimationFrame((time) => this.gameLoop(time));
+            }
+
+            update(dt) {
+                this.player.update(dt, this.input, this.mapBounds, this.walls);
+
+                // Check for transition zone
+                if (this.transitionZone && this.transitionZone.contains(this.player.x, this.player.y)) {
+                    if (!this.isTransitioning) {
+                        this.isTransitioning = true;
+                        if (this.currentMap === 1) {
+                            this.switchToSecondMap();
+                        } else if (this.currentMap === 2) {
+                            this.switchToPVP();
+                        }
+                    }
+                } else {
+                    this.isTransitioning = false;
+                }
+
+                this.camera.follow(this.player, this.player.lastMoveDirection);
+                this.camera.update(dt);
+
+                for (const light of this.lights) {
+                    light.update(dt);
+                }
+
+                for (const drop of this.rainParticles) {
+                    drop.update(dt, this.camera, this.splashes);
+                }
+
+                for (let i = this.splashes.length - 1; i >= 0; i--) {
+                    this.splashes[i].update(dt);
+                    if (this.splashes[i].life <= 0) {
+                        this.splashes.splice(i, 1);
+                    }
+                }
+
+                this.uiCoords.textContent = `X: ${Math.floor(this.player.x)} | Y: ${Math.floor(this.player.y)}`;
+
+                // Update time display
+                const elapsedMs = Date.now() - this.startTime;
+                const totalSeconds = Math.floor(elapsedMs / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                this.uiTime.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                this.input.update();
+            }
+
+            switchToSecondMap() {
+                console.log('🗺️ Transitioning to second map...');
+
+                // Create fade overlay
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: black; opacity: 0; z-index: 1000;
+                    transition: opacity 0.5s ease;
+                `;
+                document.body.appendChild(overlay);
+
+                // Fade to black
+                setTimeout(() => { overlay.style.opacity = '1'; }, 50);
+
+                // After fade, switch map
+                setTimeout(() => {
+                    this.currentMap = 2;
+                    this.secondMapImage = this.assets['second_map'];
+
+                    // Reposition player at BLUE entry zone (top of map, below castle gate)
+                    // Pixel position ~(512, 220) in reference = world (0, -233) approximately
+                    this.player.x = 0;
+                    this.player.y = -300;  // Just below the castle gate entry point
+
+                    // Clear old walls and lights
+                    this.walls = [];
+                    this.lights = [];
+
+                    // Create walls for second map based on RED walkable path
+                    this.createWallsForSecondMap();
+
+                    // Create lights for second map based on WHITE torch positions
+                    this.createLightsForSecondMap();
+
+                    // Create transition zone at BOTTOM (exit gate to PVP)
+                    // Blue zone is at bottom center, approximately pixel (512, 960)
+                    // World coords: (0, 358) approximately
+                    this.transitionZone = new TransitionZone(0, 380, 200, 80, 'shadow_fight.html');
+
+                    // Fade back in
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.remove(), 500);
+
+                    console.log('✅ Now on second map!');
+                }, 600);
+            }
+
+            createWallsForSecondMap() {
+                // PRECISE COLLISION MAPPING based on analyzing the reference image
+                // The second map image is approximately 1024x1024 pixels
+                // Map center is at (0,0), so we map pixel coords to world coords
+                // Image analysis: Red path forms a rectangular frame around the inn
+
+                const imgW = 1024; // Reference image width
+                const imgH = 1024; // Reference image height
+
+                // Convert pixel coordinates to world coordinates
+                // Pixel (512, 512) = world (0, 0)
+                const pxToWorld = (px, py) => {
+                    return {
+                        x: (px - imgW / 2) * 0.8,  // Scale factor based on map bounds
+                        y: (py - imgH / 2) * 0.8
+                    };
+                };
+
+                // ═══════════════════════════════════════════════════════════════
+                // ANALYZING RED PATH FROM REFERENCE:
+                // - TOP PATH: y ≈ 180-260px, spans across with gap in middle for gate
+                // - LEFT PATH: x ≈ 80-190px, from top to bottom
+                // - RIGHT PATH: x ≈ 835-940px, from top to bottom  
+                // - BOTTOM PATH: y ≈ 920-1000px, spans across with gap for exit gate
+                // - INN (center blocked): approx 250-780px x 300-870px
+                // ═══════════════════════════════════════════════════════════════
+
+                // OUTER WALLS (can't go outside the red path)
+
+                // Top outer wall (castle side) - blocks going north past castle
+                let p = pxToWorld(512, 140);
+                this.walls.push(new CollisionWall(p.x, p.y, 900, 30));
+
+                // Left outer wall 
+                p = pxToWorld(60, 512);
+                this.walls.push(new CollisionWall(p.x, p.y, 30, 800));
+
+                // Right outer wall
+                p = pxToWorld(964, 512);
+                this.walls.push(new CollisionWall(p.x, p.y, 30, 800));
+
+                // Bottom outer wall
+                p = pxToWorld(512, 990);
+                this.walls.push(new CollisionWall(p.x, p.y, 900, 30));
+
+                // INNER WALLS (the inn building - THE BROKEN HOUND)
+
+                // Inn top wall (blocks going into inn from top path)
+                p = pxToWorld(512, 285);
+                this.walls.push(new CollisionWall(p.x, p.y, 580, 25));
+
+                // Inn left wall
+                p = pxToWorld(210, 580);
+                this.walls.push(new CollisionWall(p.x, p.y, 25, 550));
+
+                // Inn right wall  
+                p = pxToWorld(814, 580);
+                this.walls.push(new CollisionWall(p.x, p.y, 25, 550));
+
+                // Inn bottom wall (with gap for the doors - yellow lit areas)
+                // Left part of inn bottom
+                p = pxToWorld(310, 870);
+                this.walls.push(new CollisionWall(p.x, p.y, 180, 25));
+                // Right part of inn bottom
+                p = pxToWorld(714, 870);
+                this.walls.push(new CollisionWall(p.x, p.y, 180, 25));
+
+                // CORNER PIECES (smooth out the path corners)
+
+                // Top-left corner (where top path meets left path)
+                p = pxToWorld(135, 210);
+                this.walls.push(new CollisionWall(p.x, p.y, 80, 80));
+
+                // Top-right corner
+                p = pxToWorld(889, 210);
+                this.walls.push(new CollisionWall(p.x, p.y, 80, 80));
+
+                // Bottom-left corner
+                p = pxToWorld(135, 940);
+                this.walls.push(new CollisionWall(p.x, p.y, 80, 80));
+
+                // Bottom-right corner
+                p = pxToWorld(889, 940);
+                this.walls.push(new CollisionWall(p.x, p.y, 80, 80));
+
+                // Inner corner pieces (where path meets inn)
+                // Top-left inner
+                p = pxToWorld(190, 310);
+                this.walls.push(new CollisionWall(p.x, p.y, 50, 50));
+                // Top-right inner
+                p = pxToWorld(834, 310);
+                this.walls.push(new CollisionWall(p.x, p.y, 50, 50));
+                // Bottom-left inner
+                p = pxToWorld(190, 850);
+                this.walls.push(new CollisionWall(p.x, p.y, 50, 50));
+                // Bottom-right inner
+                p = pxToWorld(834, 850);
+                this.walls.push(new CollisionWall(p.x, p.y, 50, 50));
+            }
+
+            createLightsForSecondMap() {
+                // Pixel-to-World conversion (same as walls)
+                const imgW = 1024;
+                const imgH = 1024;
+                const pxToWorld = (px, py) => ({
+                    x: (px - imgW / 2) * 0.8,
+                    y: (py - imgH / 2) * 0.8
+                });
+
+                // Based on WHITE circles in reference image at precise pixel positions
+                const lightPositions = [
+                    // ═══ CASTLE WALL TORCHES (top area, 4 torches by the gate) ═══
+                    // Two torches flanking the main gate
+                    { ...pxToWorld(420, 165), radius: 130 },   // Left of gate
+                    { ...pxToWorld(604, 165), radius: 130 },   // Right of gate
+                    // Outer torches on castle wall
+                    { ...pxToWorld(280, 180), radius: 100 },   // Far left
+                    { ...pxToWorld(744, 180), radius: 100 },   // Far right
+
+                    // ═══ LEFT PATHWAY TORCHES ═══
+                    { ...pxToWorld(100, 350), radius: 90 },    // Upper left path
+                    { ...pxToWorld(100, 650), radius: 90 },    // Lower left path
+
+                    // ═══ RIGHT PATHWAY TORCHES ═══
+                    { ...pxToWorld(924, 350), radius: 90 },    // Upper right path
+                    { ...pxToWorld(924, 650), radius: 90 },    // Lower right path
+
+                    // ═══ INN AREA TORCHES (THE BROKEN HOUND) ═══
+                    // Torches by the doors (yellow lit windows in reference)
+                    { ...pxToWorld(360, 820), radius: 110 },   // Left door
+                    { ...pxToWorld(664, 820), radius: 110 },   // Right door
+                    // Torch above inn sign "THE BROKEN HOUND"
+                    { ...pxToWorld(512, 420), radius: 100 },   // Above sign
+
+                    // ═══ BOTTOM PATHWAY TORCHES ═══
+                    { ...pxToWorld(200, 940), radius: 80 },    // Bottom left
+                    { ...pxToWorld(824, 940), radius: 80 },    // Bottom right
+
+                    // ═══ FLAG/BANNER TORCHES (corners) ═══
+                    { ...pxToWorld(50, 150), radius: 70 },     // Top-left corner
+                    { ...pxToWorld(974, 150), radius: 70 },    // Top-right corner
+                ];
+
+                for (const pos of lightPositions) {
+                    this.lights.push(new LightSource(pos.x, pos.y, pos.radius));
+                }
+            }
+
+            switchToPVP() {
+                if (this.pvpTriggered) return;
+                this.pvpTriggered = true;
+                console.log('⚔️ Transitioning to PVP Battle...');
+
+                // Create loading overlay with first map background
+                const overlay = document.createElement('div');
+                overlay.innerHTML = `
+                    <div style="
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: 
+                            linear-gradient(135deg, rgba(5, 4, 11, 0.85) 0%, rgba(26, 10, 10, 0.8) 50%, rgba(5, 4, 11, 0.9) 100%),
+                            url('Gemini_Generated_Image_avu73mavu73mavu7.png') center/cover no-repeat;
+                        display: flex; flex-direction: column;
+                        justify-content: center; align-items: center;
+                        z-index: 1000; opacity: 0;
+                        transition: opacity 0.5s ease;
+                        font-family: 'Cinzel', serif;
+                    ">
+                        <div style="
+                            font-size: 48px; color: #bd1313;
+                            text-shadow: 0 0 30px rgba(189, 19, 19, 0.8), 0 4px 0 #1a0a0a;
+                            letter-spacing: 12px; margin-bottom: 20px;
+                        ">ENTERING BATTLE</div>
+                        <div style="
+                            font-size: 18px; color: #7a8599;
+                            letter-spacing: 8px; margin-bottom: 40px;
+                        ">PREPARE FOR COMBAT</div>
+                        <div style="
+                            width: 300px; height: 4px;
+                            background: rgba(122, 133, 153, 0.2);
+                            border-radius: 2px; overflow: hidden;
+                        ">
+                            <div id="pvp-loading-bar" style="
+                                height: 100%; width: 0%;
+                                background: linear-gradient(90deg, #bd1313, #ff7b00);
+                                box-shadow: 0 0 20px rgba(189, 19, 19, 0.8);
+                                transition: width 0.1s ease-out;
+                            "></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+
+                // Fade in and animate loading bar
+                setTimeout(() => {
+                    overlay.firstElementChild.style.opacity = '1';
+                }, 50);
+
+                // Animate loading bar
+                let progress = 0;
+                const loadingInterval = setInterval(() => {
+                    progress += 2;
+                    const loadBar = document.getElementById('pvp-loading-bar');
+                    if (loadBar) loadBar.style.width = progress + '%';
+
+                    if (progress >= 100) {
+                        clearInterval(loadingInterval);
+                        // Redirect to PVP page
+                        setTimeout(() => {
+                            window.location.href = 'shadow_fight.html';
+                        }, 300);
+                    }
+                }, 40);
+            }
+
+            render() {
+                this.renderer.clear();
+
+                // Pass 1: Map background (video for map 1, static image for map 2)
+                if (this.currentMap === 2 && this.secondMapImage) {
+                    this.renderer.drawImageBackground(this.secondMapImage, this.camera);
+                } else {
+                    this.renderer.drawVideoBackground(this.mapVideo, this.camera);
+                }
+
+                // Debug: Draw walls and transition zone if enabled
+                if (CONFIG.DEBUG_SHOW_WALLS) {
+                    for (const wall of this.walls) {
+                        wall.draw(this.renderer.ctx, this.camera);
+                    }
+                    if (this.transitionZone) {
+                        this.transitionZone.draw(this.renderer.ctx, this.camera);
+                    }
+                }
+
+                // Pass 2: Player reflection
+                this.player.draw(this.renderer.ctx, this.camera, true);
+
+                // Embers
+                for (const light of this.lights) {
+                    light.drawEmbers(this.renderer.ctx, this.camera);
+                }
+
+                // Pass 3: Player
+                this.player.draw(this.renderer.ctx, this.camera, false);
+
+                // Pass 4: Lighting
+                this.renderer.drawLighting(this.lights, this.player, this.camera);
+
+                // Pass 5: Weather
+                this.renderer.drawRain(this.rainParticles, this.camera);
+                this.renderer.drawSplashes(this.splashes, this.camera);
+
+                // Post-processing
+                this.renderer.applyFilmGrain();
+                this.renderer.applyChromaticAberration();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // IGNITE THE ECLIPSE
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        window.addEventListener('load', () => {
+            const engine = new GameEngine();
+            engine.init().catch(console.error);
+        });
+    </script>
+</body>
+
+</html>
